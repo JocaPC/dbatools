@@ -367,6 +367,13 @@ function Copy-DbaLogin {
                         }
 
                         try {
+                            # Renaming login.
+                            if ($LoginRenameHashtable.Keys -contains $userName) {
+                                $NewLogin = $LoginRenameHashtable[$userName]
+                                $destLogin.Name = $NewLogin
+                                Write-Message -Level Verbose -Message "Renamed $userName to $NewLogin."
+                                $userName = $NewLogin
+                            }
                             $destLogin.Create($hashedPass, [Microsoft.SqlServer.Management.Smo.LoginCreateOptions]::IsHashed)
                             $destLogin.Refresh()
                             Write-Message -Level Verbose -Message "Successfully added $userName to $destinstance."
@@ -406,6 +413,13 @@ function Copy-DbaLogin {
                         $destLogin.Language = $sourceLogin.Language
 
                         try {
+                            # Renaming login.
+                            if ($LoginRenameHashtable.Keys -contains $userName) {
+                                $NewLogin = $LoginRenameHashtable[$userName]
+                                $destLogin.Name = $NewLogin
+                                Write-Message -Level Verbose -Message "Renamed $userName to $NewLogin."
+                                $userName = $NewLogin
+                            }
                             $destLogin.Create()
                             $destLogin.Refresh()
                             Write-Message -Level Verbose -Message "Successfully added $userName to $destinstance."
@@ -459,28 +473,6 @@ function Copy-DbaLogin {
                 if (-not $ExcludePermissionSync) {
                     if ($Pscmdlet.ShouldProcess($destinstance, "Updating SQL login $userName permissions")) {
                         Update-SqlPermission -sourceserver $sourceServer -sourcelogin $sourceLogin -destserver $destServer -destlogin $destLogin
-                    }
-                }
-
-                if ($LoginRenameHashtable.Keys -contains $userName) {
-                    $NewLogin = $LoginRenameHashtable[$userName]
-
-                    if ($Pscmdlet.ShouldProcess($destinstance, "Renaming SQL Login $userName to $NewLogin")) {
-                        try {
-                            Rename-DbaLogin -SqlInstance $destServer -Login $userName -NewLogin $NewLogin
-
-                            $copyLoginStatus.DestinationLogin = $NewLogin
-                            $copyLoginStatus.Status = "Successful"
-                            $copyLoginStatus | Select-DefaultView -Property DateTime, SourceServer, DestinationServer, Name, Type, Status, Notes -TypeName MigrationObject
-
-                        } catch {
-                            $copyLoginStatus.DestinationLogin = $NewLogin
-                            $copyLoginStatus.Status = "Failed to rename"
-                            $copyLoginStatus.Notes = (Get-ErrorMessage -Record $_).Message
-                            $copyLoginStatus | Select-DefaultView -Property DateTime, SourceServer, DestinationServer, Name, Type, Status, Notes -TypeName MigrationObject
-
-                            Stop-Function -Message "Issue renaming $userName to $NewLogin" -Category InvalidOperation -ErrorRecord $_ -Target $destServer 3>$null
-                        }
                     }
                 }
             }
